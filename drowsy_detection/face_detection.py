@@ -11,8 +11,11 @@ known_face_encodings = []
 known_face_metadata = []
 
 def eye_aspect_ratio(eye):
+    # Vertical landmarks
     A = distance.euclidean(eye[1], eye[5])
     B = distance.euclidean(eye[2], eye[4])
+
+    # Horisontal landmarks
     C = distance.euclidean(eye[0], eye[3])
     ear = (A + B) / (2.0 * C)
     return ear
@@ -129,7 +132,8 @@ def main_loop():
 
     # Track how long since we last saved a copy of our known faces to disk as a backup.
     number_of_faces_since_save = 0
-
+    process_this_frame = True
+    i = 0
     while True:
         # Grab a single frame of video
         ret, frame = video_capture.read()
@@ -140,38 +144,39 @@ def main_loop():
         # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
         rgb_small_frame = small_frame[:, :, ::-1]
 
-        # Find all the face locations and face encodings in the current frame of video
-        face_locations = face_recognition.face_locations(rgb_small_frame)
-        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+        if process_this_frame:
+            # Find all the face locations and face encodings in the current frame of video
+            face_locations = face_recognition.face_locations(rgb_small_frame)
+            face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
 
-        # Loop through each detected face and see if it is one we have seen before
-        # If so, we'll give it a label that we'll draw on top of the video.
-        face_labels = []
-        for face_location, face_encoding in zip(face_locations, face_encodings):
-            # See if this face is in our list of known faces.
-            metadata = lookup_known_face(face_encoding)
+            # Loop through each detected face and see if it is one we have seen before
+            # If so, we'll give it a label that we'll draw on top of the video.
+            face_labels = []
+            for face_location, face_encoding in zip(face_locations, face_encodings):
+                # See if this face is in our list of known faces.
+                metadata = lookup_known_face(face_encoding)
 
-            # If we found the face, label the face with some useful information.
-            if metadata is not None:
-                time_at_door = datetime.now() - metadata['first_seen_this_interaction']
-                face_label = f"At door {int(time_at_door.total_seconds())}s"
+                # If we found the face, label the face with some useful information.
+                if metadata is not None:
+                    time_at_door = datetime.now() - metadata['first_seen_this_interaction']
+                    face_label = f"{int(time_at_door.total_seconds())}s"
 
-            # If this is a brand new face, add it to our list of known faces
-            else:
-                face_label = "New visitor!"
+                # If this is a brand new face, add it to our list of known faces
+                else:
+                    face_label = "New visitor!"
 
-                # Grab the image of the the face from the current frame of video
-                top, right, bottom, left = face_location
-                face_image = small_frame[top:bottom, left:right]
-                face_image = cv2.resize(face_image, (150, 150))
+                    # Grab the image of the the face from the current frame of video
+                    top, right, bottom, left = face_location
+                    face_image = small_frame[top:bottom, left:right]
+                    face_image = cv2.resize(face_image, (150, 150))
 
-                # Add the new face to our known face data
-                register_new_face(face_encoding, face_image)
+                    # Add the new face to our known face data
+                    register_new_face(face_encoding, face_image)
 
-            face_labels.append(face_label)
+                face_labels.append(face_label)
 
-
-
+        process_this_frame = not process_this_frame
+        
         # Draw a box around each face and label each face
         for (top, right, bottom, left), face_label in zip(face_locations, face_labels):
             # Scale back up face locations since the frame we detected in was scaled to 1/4 size
@@ -181,7 +186,7 @@ def main_loop():
             left *= 4
 
             # Draw a box around the face
-            cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+            #cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
 
             # list with posisitions of points making up the facial features (eyes, mouth, etc)
             face_landmarks_list = face_recognition.face_landmarks(frame)
@@ -202,6 +207,7 @@ def main_loop():
                     # total EAR ( eye aspect ratio) på begge øyene
                     # EAR brukes senere til å se hvor åpne øyene er
                     ear = (leftEAR + rightEAR) / 2.0
+                    print(ear)
 
                     leftEyeHull = cv2.convexHull(leftEye)
                     rightEyeHull = cv2.convexHull(rightEye)
@@ -211,10 +217,12 @@ def main_loop():
                     cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
 
                     thresh = 0.25
-                    frame_check = 20
-                    flag=0
+                    frame_check = 3
+                    
+                    flag=i
+
                     if ear < thresh:
-                        flag += 1
+                        i += 1
                         print (flag)
                         if flag >= frame_check:
                             cv2.putText(frame, "****************ALERT!****************", (10, 30),
@@ -226,33 +234,13 @@ def main_loop():
                             flag = 0
                 
             # Draw a label with a name below the face
-            cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
-            cv2.putText(frame, face_label, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 1)
+            #cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
+            #cv2.putText(frame, face_label, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 1)
 
            
            
 
-        # Display recent visitor images
-        number_of_recent_visitors = 0
-        for metadata in known_face_metadata:
-            # If we have seen this person in the last minute, draw their image
-            if datetime.now() - metadata["last_seen"] < timedelta(seconds=10) and metadata["seen_frames"] > 5:
-                # Draw the known face image
-                x_position = number_of_recent_visitors * 150
-                frame[30:180, x_position:x_position + 150] = metadata["face_image"]
-                number_of_recent_visitors += 1
-
-                # Label the image with how many times they have visited
-                visits = metadata['seen_count']
-                visit_label = f"{visits} visits"
-                if visits == 1:
-                    visit_label = "First visit"
-                cv2.putText(frame, visit_label, (x_position + 10, 170), cv2.FONT_HERSHEY_DUPLEX, 0.6, (255, 255, 255), 1)
-
-        if number_of_recent_visitors > 0:
-            cv2.putText(frame, "Visitors at Door", (5, 18), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 1)
-
-
+   
 
         # Display the final frame of video with boxes drawn around each detected fames
         cv2.imshow('Video', frame)
