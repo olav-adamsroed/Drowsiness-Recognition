@@ -4,11 +4,18 @@ from datetime import datetime, timedelta
 import numpy as np
 import platform
 import pickle
-
+from scipy.spatial import distance
 
 # Our list of known face encodings and a matching list of metadata about each face.
 known_face_encodings = []
 known_face_metadata = []
+
+def eye_aspect_ratio(eye):
+    A = distance.euclidean(eye[1], eye[5])
+    B = distance.euclidean(eye[2], eye[4])
+    C = distance.euclidean(eye[0], eye[3])
+    ear = (A + B) / (2.0 * C)
+    return ear
 
 
 def save_known_faces():
@@ -163,6 +170,8 @@ def main_loop():
 
             face_labels.append(face_label)
 
+
+
         # Draw a box around each face and label each face
         for (top, right, bottom, left), face_label in zip(face_locations, face_labels):
             # Scale back up face locations since the frame we detected in was scaled to 1/4 size
@@ -174,9 +183,54 @@ def main_loop():
             # Draw a box around the face
             cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
 
+            # list with posisitions of points making up the facial features (eyes, mouth, etc)
+            face_landmarks_list = face_recognition.face_landmarks(frame)
+
+            # her er koden som finner øyene og markerer de på skjermen
+            for face_landmarks in face_landmarks_list:
+                
+                    # array som inneholde punktene som gjør opp øyene
+                    # lefteye[0-5] og righteye[0-5], alle inneholder (x, y) posisjon
+                    leftEye = np.array(face_landmarks['left_eye'])
+                    rightEye = np.array(face_landmarks['right_eye'])
+
+                    # caller def eye_aspect_ratio på begge øyene
+                    # denne returner en verdi = EAR (eye aspect ratio) for hvert øye
+                    leftEAR = eye_aspect_ratio(leftEye)
+                    rightEAR = eye_aspect_ratio(rightEye)
+
+                    # total EAR ( eye aspect ratio) på begge øyene
+                    # EAR brukes senere til å se hvor åpne øyene er
+                    ear = (leftEAR + rightEAR) / 2.0
+
+                    leftEyeHull = cv2.convexHull(leftEye)
+                    rightEyeHull = cv2.convexHull(rightEye)
+
+                    # tegner grønt rundt øyene
+                    cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
+                    cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
+
+                    thresh = 0.25
+                    frame_check = 20
+                    flag=0
+                    if ear < thresh:
+                        flag += 1
+                        print (flag)
+                        if flag >= frame_check:
+                            cv2.putText(frame, "****************ALERT!****************", (10, 30),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                            cv2.putText(frame, "****************ALERT!****************", (10,325),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                            print ("Are you Drowsy!?")
+                        else:
+                            flag = 0
+                
             # Draw a label with a name below the face
             cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
             cv2.putText(frame, face_label, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 1)
+
+           
+           
 
         # Display recent visitor images
         number_of_recent_visitors = 0
