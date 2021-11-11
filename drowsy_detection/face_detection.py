@@ -20,6 +20,15 @@ def eye_aspect_ratio(eye):
     ear = (A + B) / (2.0 * C)
     return ear
 
+ #mouth = topLip[10], topLip[9], topLip[8], bottomLip[10], bottomLip[9], bottomLip[8]
+def mouth_aspect_ratio(top, bottom): 
+	A = distance.euclidean(top[10], bottom[8])
+	B = distance.euclidean(top[9], bottom[9])
+	C = distance.euclidean(top[8], bottom[10])
+
+	MAR = (A + B + C) / 3.0
+	return MAR
+
 
 def save_known_faces():
     with open("known_faces.dat", "wb") as face_data_file:
@@ -199,22 +208,32 @@ def main_loop():
                     leftEye = np.array(face_landmarks['left_eye'])
                     rightEye = np.array(face_landmarks['right_eye'])
 
+                    topLip = np.array(face_landmarks['top_lip'])
+                    bottomLip = np.array(face_landmarks['bottom_lip'])
+
+                    #mouth = np.array([topLip[10], topLip[9], topLip[8], bottomLip[10], bottomLip[9], bottomLip[8]])
+                    
                     # caller def eye_aspect_ratio på begge øyene
                     # denne returner en verdi = EAR (eye aspect ratio) for hvert øye
                     leftEAR = eye_aspect_ratio(leftEye)
                     rightEAR = eye_aspect_ratio(rightEye)
 
+                    mar = mouth_aspect_ratio(topLip, bottomLip)
+                    print("MAR: ", mar)
+
                     # total EAR ( eye aspect ratio) på begge øyene
                     # EAR brukes senere til å se hvor åpne øyene er
                     ear = (leftEAR + rightEAR) / 2.0
-                    print(ear)
+                    print("EAR: ", ear)
 
                     leftEyeHull = cv2.convexHull(leftEye)
                     rightEyeHull = cv2.convexHull(rightEye)
+                    #mouthHull = cv2.convexHull(mouth)
 
                     # tegner grønt rundt øyene
                     cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
                     cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
+                    #cv2.drawContours(frame, [mouthHull], -1, (0, 255, 0), 1)
 
                     thresh = 0.25
                     frame_check = 3
