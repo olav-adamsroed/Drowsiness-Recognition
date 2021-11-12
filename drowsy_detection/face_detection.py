@@ -139,6 +139,11 @@ def main_loop():
         # Note: You can pass in a filename instead if you want to process a video file instead of a live camera stream
         video_capture = cv2.VideoCapture(0)
 
+    width  = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)   
+    height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    print("width", width)
+    print("height", height)
+
     # Track how long since we last saved a copy of our known faces to disk as a backup.
     number_of_faces_since_save = 0
     process_this_frame = True
@@ -186,78 +191,71 @@ def main_loop():
 
         process_this_frame = not process_this_frame
         
-        # Draw a box around each face and label each face
-        for (top, right, bottom, left), face_label in zip(face_locations, face_labels):
-            # Scale back up face locations since the frame we detected in was scaled to 1/4 size
-            top *= 4
-            right *= 4
-            bottom *= 4
-            left *= 4
 
-            # Draw a box around the face
-            #cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+        # Draw a box around the face
+        #cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
 
-            # list with posisitions of points making up the facial features (eyes, mouth, etc)
-            face_landmarks_list = face_recognition.face_landmarks(frame)
+        # list with posisitions of points making up the facial features (eyes, mouth, etc)
+        face_landmarks_list = face_recognition.face_landmarks(frame)
 
-            # her er koden som finner øyene og markerer de på skjermen
-            for face_landmarks in face_landmarks_list:
+        # her er koden som finner øyene og markerer de på skjermen
+        for face_landmarks in face_landmarks_list:
                 
-                    # array som inneholde punktene som gjør opp øyene
-                    # lefteye[0-5] og righteye[0-5], alle inneholder (x, y) posisjon
-                    leftEye = np.array(face_landmarks['left_eye'])
-                    rightEye = np.array(face_landmarks['right_eye'])
+            # array som inneholde punktene som gjør opp øyene
+            # lefteye[0-5] og righteye[0-5], alle inneholder (x, y) posisjon
+            leftEye = np.array(face_landmarks['left_eye'])
+            rightEye = np.array(face_landmarks['right_eye'])
 
-                    topLip = np.array(face_landmarks['top_lip'])
-                    bottomLip = np.array(face_landmarks['bottom_lip'])
+            topLip = np.array(face_landmarks['top_lip'])
+            bottomLip = np.array(face_landmarks['bottom_lip'])
 
-                    #mouth = np.array([topLip[10], topLip[9], topLip[8], bottomLip[10], bottomLip[9], bottomLip[8]])
+            #mouth = np.array([topLip[10], topLip[9], topLip[8], bottomLip[10], bottomLip[9], bottomLip[8]])
                     
-                    # caller def eye_aspect_ratio på begge øyene
-                    # denne returner en verdi = EAR (eye aspect ratio) for hvert øye
-                    leftEAR = eye_aspect_ratio(leftEye)
-                    rightEAR = eye_aspect_ratio(rightEye)
+            # caller def eye_aspect_ratio på begge øyene
+            # denne returner en verdi = EAR (eye aspect ratio) for hvert øye
+            leftEAR = eye_aspect_ratio(leftEye)
+            rightEAR = eye_aspect_ratio(rightEye)
 
-                    mar = mouth_aspect_ratio(topLip, bottomLip)
-                    print("MAR: ", mar)
+            mar = mouth_aspect_ratio(topLip, bottomLip)
+            print("MAR: ", mar)
 
-                    # total EAR ( eye aspect ratio) på begge øyene
-                    # EAR brukes senere til å se hvor åpne øyene er
-                    ear = (leftEAR + rightEAR) / 2.0
-                    print("EAR: ", ear)
+            # total EAR ( eye aspect ratio) på begge øyene
+            # EAR brukes senere til å se hvor åpne øyene er
+            ear = (leftEAR + rightEAR) / 2.0
+            print("EAR: ", ear)
 
-                    leftEyeHull = cv2.convexHull(leftEye)
-                    rightEyeHull = cv2.convexHull(rightEye)
-                    #mouthHull = cv2.convexHull(mouth)
+            leftEyeHull = cv2.convexHull(leftEye)
+            rightEyeHull = cv2.convexHull(rightEye)
 
-                    # tegner grønt rundt øyene
-                    cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
-                    cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
-                    #cv2.drawContours(frame, [mouthHull], -1, (0, 255, 0), 1)
+            # tegner grønt rundt øyene
+            cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
+            cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
 
-                    thresh = 0.25
-                    frame_check = 3
+            eye_thresh = 0.20
+            mouth_thresh = 30
+            frame_check = 4
                     
-                    flag=i
+            flag=i
 
-                    if ear < thresh:
-                        i += 1
-                        print (flag)
-                        if flag >= frame_check:
-                            cv2.putText(frame, "****************ALERT!****************", (10, 30),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                            cv2.putText(frame, "****************ALERT!****************", (10,325),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                            print ("Are you Drowsy!?")
-                        else:
-                            flag = 0
-                
-            # Draw a label with a name below the face
-            #cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
-            #cv2.putText(frame, face_label, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 1)
+            #width 640.0
+            #height 480.0
 
-           
-           
+            if ear < eye_thresh or mar < mouth_thresh:
+                i += 1
+                print (flag)
+                if flag >= frame_check:
+                    cv2.putText(frame, "****************ALERT!****************", (100, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    cv2.putText(frame, "****************ALERT!****************", (100, 450),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    print ("Are you Drowsy!?")
+                else:
+                    flag = 0
+       
+                    
+    # Draw a label with a name below the face
+    #cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
+    #cv2.putText(frame, face_label, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 1)
 
    
 
