@@ -5,22 +5,24 @@ import numpy as np
 import platform
 import pickle
 from scipy.spatial import distance
+import time
 
-# Our list of known face encodings and a matching list of metadata about each face.
-known_face_encodings = []
-known_face_metadata = []
-
+#calculate eye aspect ratio, how open/closed the eye is
+# 6 points in each eye
 def eye_aspect_ratio(eye):
-    # Vertical landmarks
     A = distance.euclidean(eye[1], eye[5])
     B = distance.euclidean(eye[2], eye[4])
-
-    # Horisontal landmarks
     C = distance.euclidean(eye[0], eye[3])
+
     ear = (A + B) / (2.0 * C)
     return ear
 
  #mouth = topLip[10], topLip[9], topLip[8], bottomLip[10], bottomLip[9], bottomLip[8]
+
+ # calculate mouth aspect ratio, how open/closed the mouth is
+ # inner mouth has 6 points, 3 points above and 3 points below
+ # We find the distance between each corresponding lower/upper point
+ # add all 3 values together and divide sum by 3
 def mouth_aspect_ratio(top, bottom): 
 	A = distance.euclidean(top[10], bottom[8])
 	B = distance.euclidean(top[9], bottom[9])
@@ -28,25 +30,6 @@ def mouth_aspect_ratio(top, bottom):
 
 	MAR = (A + B + C) / 3.0
 	return MAR
-
-
-def save_known_faces():
-    with open("known_faces.dat", "wb") as face_data_file:
-        face_data = [known_face_encodings, known_face_metadata]
-        pickle.dump(face_data, face_data_file)
-        print("Known faces backed up to disk.")
-
-
-def load_known_faces():
-    global known_face_encodings, known_face_metadata
-
-    try:
-        with open("known_faces.dat", "rb") as face_data_file:
-            known_face_encodings, known_face_metadata = pickle.load(face_data_file)
-            print("Known faces loaded from disk.")
-    except FileNotFoundError as e:
-        print("No previous face data found - starting with a blank known face list.")
-        pass
 
 
 def running_on_jetson_nano():
@@ -70,65 +53,6 @@ def get_jetson_gstreamer_source(capture_width=1280, capture_height=720, display_
             )
 
 
-def register_new_face(face_encoding, face_image):
-    """
-    Add a new person to our list of known faces
-    """
-    # Add the face encoding to the list of known faces
-    known_face_encodings.append(face_encoding)
-    # Add a matching dictionary entry to our metadata list.
-    # We can use this to keep track of how many times a person has visited, when we last saw them, etc.
-    known_face_metadata.append({
-        "first_seen": datetime.now(),
-        "first_seen_this_interaction": datetime.now(),
-        "last_seen": datetime.now(),
-        "seen_count": 1,
-        "seen_frames": 1,
-        "face_image": face_image,
-    })
-
-
-def lookup_known_face(face_encoding):
-    """
-    See if this is a face we already have in our face list
-    """
-    metadata = None
-
-    # If our known face list is empty, just return nothing since we can't possibly have seen this face.
-    if len(known_face_encodings) == 0:
-        return metadata
-
-    # Calculate the face distance between the unknown face and every face on in our known face list
-    # This will return a floating point number between 0.0 and 1.0 for each known face. The smaller the number,
-    # the more similar that face was to the unknown face.
-    face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
-
-    # Get the known face that had the lowest distance (i.e. most similar) from the unknown face.
-    best_match_index = np.argmin(face_distances)
-
-    # If the face with the lowest distance had a distance under 0.6, we consider it a face match.
-    # 0.6 comes from how the face recognition model was trained. It was trained to make sure pictures
-    # of the same person always were less than 0.6 away from each other.
-    # Here, we are loosening the threshold a little bit to 0.65 because it is unlikely that two very similar
-    # people will come up to the door at the same time.
-    if face_distances[best_match_index] < 0.65:
-        # If we have a match, look up the metadata we've saved for it (like the first time we saw it, etc)
-        metadata = known_face_metadata[best_match_index]
-
-        # Update the metadata for the face so we can keep track of how recently we have seen this face.
-        metadata["last_seen"] = datetime.now()
-        metadata["seen_frames"] += 1
-
-        # We'll also keep a total "seen count" that tracks how many times this person has come to the door.
-        # But we can say that if we have seen this person within the last 5 minutes, it is still the same
-        # visit, not a new visit. But if they go away for awhile and come back, that is a new visit.
-        if datetime.now() - metadata["first_seen_this_interaction"] > timedelta(minutes=5):
-            metadata["first_seen_this_interaction"] = datetime.now()
-            metadata["seen_count"] += 1
-
-    return metadata
-
-
 def main_loop():
     # Get access to the webcam. The method is different depending on if this is running on a laptop or a Jetson Nano.
     if running_on_jetson_nano():
@@ -139,6 +63,8 @@ def main_loop():
         # Note: You can pass in a filename instead if you want to process a video file instead of a live camera stream
         video_capture = cv2.VideoCapture(0)
 
+    fps = video_capture.get(cv2.CAP_PROP_FPS)
+    print("Frames per second using video.get(cv2.CAP_PROP_FPS) : {0}".format(fps))
     width  = video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)   
     height = video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
     print("width", width)
@@ -157,40 +83,6 @@ def main_loop():
 
         # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
         rgb_small_frame = small_frame[:, :, ::-1]
-
-        if process_this_frame:
-            # Find all the face locations and face encodings in the current frame of video
-            face_locations = face_recognition.face_locations(rgb_small_frame)
-            face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
-
-            # Loop through each detected face and see if it is one we have seen before
-            # If so, we'll give it a label that we'll draw on top of the video.
-            face_labels = []
-            for face_location, face_encoding in zip(face_locations, face_encodings):
-                # See if this face is in our list of known faces.
-                metadata = lookup_known_face(face_encoding)
-
-                # If we found the face, label the face with some useful information.
-                if metadata is not None:
-                    time_at_door = datetime.now() - metadata['first_seen_this_interaction']
-                    face_label = f"{int(time_at_door.total_seconds())}s"
-
-                # If this is a brand new face, add it to our list of known faces
-                else:
-                    face_label = "New visitor!"
-
-                    # Grab the image of the the face from the current frame of video
-                    top, right, bottom, left = face_location
-                    face_image = small_frame[top:bottom, left:right]
-                    face_image = cv2.resize(face_image, (150, 150))
-
-                    # Add the new face to our known face data
-                    register_new_face(face_encoding, face_image)
-
-                face_labels.append(face_label)
-
-        process_this_frame = not process_this_frame
-        
 
         # Draw a box around the face
         #cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
@@ -232,7 +124,7 @@ def main_loop():
             cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
 
             eye_thresh = 0.20
-            mouth_thresh = 30
+            mouth_thresh = 35
             frame_check = 4
                     
             flag=i
@@ -240,7 +132,7 @@ def main_loop():
             #width 640.0
             #height 480.0
 
-            if ear < eye_thresh or mar < mouth_thresh:
+            if ear < eye_thresh or mar > mouth_thresh:
                 i += 1
                 print (flag)
                 if flag >= frame_check:
@@ -257,8 +149,6 @@ def main_loop():
     #cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
     #cv2.putText(frame, face_label, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 1)
 
-   
-
         # Display the final frame of video with boxes drawn around each detected fames
         cv2.imshow('Video', frame)
 
@@ -268,11 +158,11 @@ def main_loop():
             break
 
         # We need to save our known faces back to disk every so often in case something crashes.
-        if len(face_locations) > 0 and number_of_faces_since_save > 100:
-            save_known_faces()
-            number_of_faces_since_save = 0
-        else:
-            number_of_faces_since_save += 1
+       # if len(face_locations) > 0 and number_of_faces_since_save > 100:
+            #save_known_faces()
+            #number_of_faces_since_save = 0
+       # else:
+            #number_of_faces_since_save += 1
 
     # Release handle to the webcam
     video_capture.release()
@@ -280,5 +170,4 @@ def main_loop():
 
 
 if __name__ == "__main__":
-    load_known_faces()
     main_loop()
