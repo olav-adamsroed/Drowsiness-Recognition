@@ -6,6 +6,17 @@ import platform
 import pickle
 from scipy.spatial import distance
 import time
+import playsound
+from threading import Thread
+
+
+path = 'beeping.wav'
+
+
+def sound_alarm():
+    time.sleep(0.1)
+    playsound.playsound(path)
+
 
 #calculate eye aspect ratio, how open/closed the eye is
 # 6 points in each eye
@@ -71,7 +82,8 @@ def main_loop():
     print("height", height)
 
     process_this_frame = True
-    i = 0
+    counter = 0
+    ALARM_ON = False
     while True:
         # Grab a single frame of video
         ret, frame = video_capture.read()
@@ -135,24 +147,39 @@ def main_loop():
 
             eye_thresh = 0.20
             mouth_thresh = 30
-            frame_check = 30
-                    
-            flag=i
+            frame_check = 4
+          
 
             #width 640.0
             #height 480.0
 
+           
+            timecheck = 3
+            currentTime = time.time()
             if ear < eye_thresh or mar > mouth_thresh:
-                i += 1
-                print (flag)
-                if flag >= frame_check:
-                    cv2.putText(frame, "****************ALERT!****************", (100, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                    cv2.putText(frame, "****************ALERT!****************", (100, 450),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                    print ("Are you Drowsy!?")
-                else:
-                    flag = 0
+                newTime = time.time()
+                #counter += 1
+                #print (flag)
+                #if flag >= frame_check:
+                timecheck = newTime - currentTime
+                if timecheck >= timecheck:
+                    if not ALARM_ON:
+                        ALARM_ON = True
+                        t = Thread(target=sound_alarm)
+                        t.deamon = True
+                        time.sleep(0.1)
+                        t.start()
+                        cv2.putText(frame, "****************ALERT!****************", (100, 30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                        cv2.putText(frame, "****************ALERT!****************", (100, 450),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                        print ("Are you Drowsy!?")
+                        time.sleep(0.5)
+            else:
+                ALARM_ON = False
+                #counter = 0
+                currentTime = time.time()
+           
        
                     
     # Draw a label with a name below the face
