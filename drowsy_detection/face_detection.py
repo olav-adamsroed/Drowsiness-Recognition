@@ -5,7 +5,7 @@ import numpy as np
 import platform
 import pickle
 from scipy.spatial import distance
-import time
+from datetime import datetime, time
 
 #calculate eye aspect ratio, how open/closed the eye is
 # 6 points in each eye
@@ -51,6 +51,31 @@ def get_jetson_gstreamer_source(capture_width=1280, capture_height=720, display_
             f'video/x-raw, width=(int){display_width}, height=(int){display_height}, format=(string)BGRx ! ' +
             'videoconvert ! video/x-raw, format=(string)BGR ! appsink'
             )
+
+# Should take in yawns
+def time_counter(MAR):
+
+    yawn_check = MAR
+    yawn_count = []
+    yawn_compare = []
+    time_count = 0
+    time_spent = timer_end - timer_start
+    timer_start= time.time()
+    print("this should be our if statement where we count some time lol")
+    
+    if timer_end - time_start == 59:
+        yawn_count[i] = yawn_check
+        i += 1
+
+        if yawn_check[i] == 9:
+            yawn_compare[i]
+       
+
+    timer_end = time.time()
+    
+    time_subtracter = datetime.combine(now.date(), time(0))
+    print(timer - time_subtractor)
+
 
 
 def main_loop():
@@ -107,6 +132,7 @@ def main_loop():
             rightEAR = eye_aspect_ratio(rightEye)
 
             mar = mouth_aspect_ratio(topLip, bottomLip)
+            #yawn_counter = time_counter(mar)
 
             # total EAR ( eye aspect ratio) på begge øyene
             # EAR brukes senere til å se hvor åpne øyene er
