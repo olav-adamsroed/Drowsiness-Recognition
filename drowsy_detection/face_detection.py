@@ -70,8 +70,6 @@ def main_loop():
     print("width", width)
     print("height", height)
 
-    # Track how long since we last saved a copy of our known faces to disk as a backup.
-    number_of_faces_since_save = 0
     process_this_frame = True
     i = 0
     while True:
@@ -109,23 +107,35 @@ def main_loop():
             rightEAR = eye_aspect_ratio(rightEye)
 
             mar = mouth_aspect_ratio(topLip, bottomLip)
-            print("MAR: ", mar)
 
             # total EAR ( eye aspect ratio) på begge øyene
             # EAR brukes senere til å se hvor åpne øyene er
             ear = (leftEAR + rightEAR) / 2.0
-            print("EAR: ", ear)
+
+            marstring = 'MAR: ' + str("{:.2f}".format(mar))
+            earstring = 'EAR: ' + str("{:.2f}".format(ear))
+            cv2.putText(frame, marstring, (450, 60),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(frame, earstring, (450, 90),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
             leftEyeHull = cv2.convexHull(leftEye)
             rightEyeHull = cv2.convexHull(rightEye)
+
+            topLipHull = cv2.convexHull(topLip)
+            bottomLipHull = cv2.convexHull(bottomLip)
+
+            # tegner grønt rundt leppene
+            cv2.drawContours(frame, [topLipHull], -1, (0, 255, 0), 1)
+            cv2.drawContours(frame, [bottomLipHull], -1, (0, 255, 0), 1)
 
             # tegner grønt rundt øyene
             cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
             cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
 
             eye_thresh = 0.20
-            mouth_thresh = 35
-            frame_check = 4
+            mouth_thresh = 30
+            frame_check = 30
                     
             flag=i
 
