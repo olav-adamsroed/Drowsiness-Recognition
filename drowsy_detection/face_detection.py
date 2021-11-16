@@ -28,8 +28,7 @@ def eye_aspect_ratio(eye):
     ear = (A + B) / (2.0 * C)
     return ear
 
- #mouth = topLip[10], topLip[9], topLip[8], bottomLip[10], bottomLip[9], bottomLip[8]
-
+ #mouth (6 points) = topLip[10], topLip[9], topLip[8], bottomLip[10], bottomLip[9], bottomLip[8]
  # calculate mouth aspect ratio, how open/closed the mouth is
  # inner mouth has 6 points, 3 points above and 3 points below
  # We find the distance between each corresponding lower/upper point
@@ -87,15 +86,6 @@ def main_loop():
     while True:
         # Grab a single frame of video
         ret, frame = video_capture.read()
-
-        # Resize frame of video to 1/4 size for faster face recognition processing
-        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
-
-        # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
-        rgb_small_frame = small_frame[:, :, ::-1]
-
-        # Draw a box around the face
-        #cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
 
         # list with posisitions of points making up the facial features (eyes, mouth, etc)
         face_landmarks_list = face_recognition.face_landmarks(frame)
@@ -185,7 +175,6 @@ def main_loop():
 
         # Hit 'q' on the keyboard to quit!
         if cv2.waitKey(1) & 0xFF == ord('q'):
-            save_known_faces()
             break
 
 
