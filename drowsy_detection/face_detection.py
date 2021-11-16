@@ -118,10 +118,12 @@ def main_loop():
             leftEAR = eye_aspect_ratio(leftEye)
             rightEAR = eye_aspect_ratio(rightEye)
 
+            # MAR ( mouth aspect ratio) på munnen
+            # MAR er hvor åpen munnen er 
             mar = mouth_aspect_ratio(topLip, bottomLip)
 
             # total EAR ( eye aspect ratio) på begge øyene
-            # EAR brukes senere til å se hvor åpne øyene er
+            # EAR er hvor åpne øynene er
             ear = (leftEAR + rightEAR) / 2.0
 
             marstring = 'MAR: ' + str("{:.2f}".format(mar))
@@ -147,45 +149,37 @@ def main_loop():
 
             eye_thresh = 0.20
             mouth_thresh = 30
-            frame_check = 4
+            time_thresh = 3
           
-
             #width 640.0
             #height 480.0
 
+            flag = counter
            
-            timecheck = 3
-            currentTime = time.time()
             if ear < eye_thresh or mar > mouth_thresh:
-                newTime = time.time()
-                #counter += 1
-                #print (flag)
-                #if flag >= frame_check:
-                timecheck = newTime - currentTime
-                if timecheck >= timecheck:
+                counter += 1
+                print (flag)
+                if flag >= time_thresh:
                     if not ALARM_ON:
                         ALARM_ON = True
                         t = Thread(target=sound_alarm)
                         t.deamon = True
-                        time.sleep(0.1)
+                        #time.sleep(0.1)
                         t.start()
-                        cv2.putText(frame, "****************ALERT!****************", (100, 30),
+                        cv2.putText(frame, "!!!!!!!!!!!!!!!!ALERT!!!!!!!!!!!!!!!!!", (100, 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                        cv2.putText(frame, "****************ALERT!****************", (100, 450),
+                        cv2.putText(frame, "!!!!!!!!!!!!!!!!ALERT!!!!!!!!!!!!!!!!!", (100, 450),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                        print ("Are you Drowsy!?")
-                        time.sleep(0.5)
+                        #time.sleep(0.5)
+                        counter = 0
+                        ALARM_ON = False
+                        break
             else:
                 ALARM_ON = False
-                #counter = 0
-                currentTime = time.time()
+                counter = 0
+                
            
-       
                     
-    # Draw a label with a name below the face
-    #cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
-    #cv2.putText(frame, face_label, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 1)
-
         # Display the final frame of video with boxes drawn around each detected fames
         cv2.imshow('Video', frame)
 
@@ -194,12 +188,6 @@ def main_loop():
             save_known_faces()
             break
 
-        # We need to save our known faces back to disk every so often in case something crashes.
-       # if len(face_locations) > 0 and number_of_faces_since_save > 100:
-            #save_known_faces()
-            #number_of_faces_since_save = 0
-       # else:
-            #number_of_faces_since_save += 1
 
     # Release handle to the webcam
     video_capture.release()
