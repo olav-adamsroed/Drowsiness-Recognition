@@ -67,6 +67,69 @@ while True:
         font = cv2.FONT_HERSHEY_DUPLEX
         cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
 
+        # array som inneholde punktene som gjør opp øyene
+            # lefteye[0-5] og righteye[0-5], alle inneholder (x, y) posisjon
+            leftEye = np.array(face_landmarks['left_eye'])
+            rightEye = np.array(face_landmarks['right_eye'])
+
+            topLip = np.array(face_landmarks['top_lip'])
+            bottomLip = np.array(face_landmarks['bottom_lip'])
+
+            #mouth = np.array([topLip[10], topLip[9], topLip[8], bottomLip[10], bottomLip[9], bottomLip[8]])
+                    
+            # caller def eye_aspect_ratio på begge øyene
+            # denne returner en verdi = EAR (eye aspect ratio) for hvert øye
+            leftEAR = eye_aspect_ratio(leftEye)
+            rightEAR = eye_aspect_ratio(rightEye)
+
+            mar = mouth_aspect_ratio(topLip, bottomLip)
+
+            # total EAR ( eye aspect ratio) på begge øyene
+            # EAR brukes senere til å se hvor åpne øyene er
+            ear = (leftEAR + rightEAR) / 2.0
+
+            marstring = 'MAR: ' + str("{:.2f}".format(mar))
+            earstring = 'EAR: ' + str("{:.2f}".format(ear))
+            cv2.putText(frame, marstring, (450, 60),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(frame, earstring, (450, 90),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+            leftEyeHull = cv2.convexHull(leftEye)
+            rightEyeHull = cv2.convexHull(rightEye)
+
+            topLipHull = cv2.convexHull(topLip)
+            bottomLipHull = cv2.convexHull(bottomLip)
+
+            # tegner grønt rundt leppene
+            cv2.drawContours(frame, [topLipHull], -1, (0, 255, 0), 1)
+            cv2.drawContours(frame, [bottomLipHull], -1, (0, 255, 0), 1)
+
+            # tegner grønt rundt øyene
+            cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
+            cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
+
+            eye_thresh = 0.20
+            mouth_thresh = 30
+            frame_check = 30
+                    
+            flag=i
+
+            #width 640.0
+            #height 480.0
+
+            if ear < eye_thresh or mar > mouth_thresh:
+                i += 1
+                print (flag)
+                if flag >= frame_check:
+                    cv2.putText(frame, "****************ALERT!****************", (100, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    cv2.putText(frame, "****************ALERT!****************", (100, 450),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                    print ("Are you Drowsy!?")
+                else:
+                    flag = 0
+
     # Display the resulting image
     cv2.imshow('Video', frame)
 
