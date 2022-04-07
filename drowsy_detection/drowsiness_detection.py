@@ -129,11 +129,11 @@ def main_loop():
             topLipHull = cv2.convexHull(topLip)
             bottomLipHull = cv2.convexHull(bottomLip)
 
-            # tegner grønt rundt leppene
+            # markerer leppene med grønn strek.
             cv2.drawContours(frame, [topLipHull], -1, (0, 255, 0), 1)
             cv2.drawContours(frame, [bottomLipHull], -1, (0, 255, 0), 1)
 
-            # tegner grønt rundt øyene
+            # markerer øyne med grønn strek.
             cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
             cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
 
